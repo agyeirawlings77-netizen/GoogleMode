@@ -1,0 +1,1 @@
+class EmojiReaction { final String emoji; final String userId; final String messageId; const EmojiReaction({required this.emoji, required this.userId, required this.messageId}); static const defaultEmojis = ['👍', '❤️', '😂', '😮', '😢', '🙏']; }

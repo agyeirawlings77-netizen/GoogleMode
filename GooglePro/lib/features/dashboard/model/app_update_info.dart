@@ -1,0 +1,1 @@
+class AppUpdateInfo { final String currentVersion; final String latestVersion; final bool updateAvailable; final String? changelogUrl; const AppUpdateInfo({required this.currentVersion, required this.latestVersion, this.updateAvailable = false, this.changelogUrl}); }

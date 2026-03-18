@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="@color/card_dark"
+    android:padding="12dp">
+    <ImageView android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_screen_share" android:contentDescription="GooglePro" />
+    <TextView android:id="@+id/tv_device_count" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0 online" android:textColor="@color/text_primary" android:textSize="14sp" android:fontFamily="sans-serif-medium" android:layout_marginTop="4dp" />
+    <TextView android:id="@+id/tv_status" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="No active session" android:textColor="@color/text_secondary" android:textSize="11sp" android:layout_marginTop="2dp" />
+</LinearLayout>

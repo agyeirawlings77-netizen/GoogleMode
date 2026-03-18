@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../../entities/notification_entity.dart'; import '../../repositories/i_notification_repository.dart'; @injectable class GetNotificationsUseCase { final INotificationRepository _repo; GetNotificationsUseCase(this._repo); Future<List<NotificationEntity>> call() => _repo.getNotifications(); }

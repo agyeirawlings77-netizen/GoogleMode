@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../../repositories/i_device_repository.dart'; @injectable class WatchDeviceStatusUseCase { final IDeviceRepository _repo; WatchDeviceStatusUseCase(this._repo); Stream<bool> call(String uid, String deviceId) => _repo.watchOnlineStatus(uid, deviceId); }

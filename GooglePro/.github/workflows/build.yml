@@ -1,0 +1,89 @@
+name: GooglePro CI/CD — Build & Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  FLUTTER_VERSION: "3.22.0"
+  JAVA_VERSION: "17"
+
+jobs:
+  build:
+    name: Build Release APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Flutter ${{ env.FLUTTER_VERSION }}
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: ${{ runner.os }}-pub-${{ hashFiles('pubspec.lock') }}
+          restore-keys: ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code (build_runner)
+        run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze code
+        run: flutter analyze --no-fatal-infos
+        continue-on-error: true
+
+      - name: Run unit tests
+        run: flutter test test/unit/ --coverage
+        continue-on-error: true
+
+      - name: Build release APK (debug signing)
+        run: flutter build apk --release --no-shrink
+        id: build_apk
+
+      - name: Rename APK
+        run: |
+          mkdir -p outputs
+          cp build/app/outputs/flutter-apk/app-release.apk outputs/GooglePro-release.apk
+          echo "APK_PATH=outputs/GooglePro-release.apk" >> $GITHUB_ENV
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GooglePro-release-apk
+          path: outputs/GooglePro-release.apk
+          retention-days: 30
+
+      - name: Auto-fix build errors with Claude AI
+        if: failure()
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python3 scripts/ai_fix_build.py
+        continue-on-error: true
+
+      - name: Commit APK to repository
+        if: success()
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "ci: build GooglePro-release.apk [skip ci]"
+          file_pattern: outputs/GooglePro-release.apk
+          branch: main

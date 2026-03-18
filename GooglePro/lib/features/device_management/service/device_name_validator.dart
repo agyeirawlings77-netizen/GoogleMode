@@ -1,0 +1,1 @@
+class DeviceNameValidator { static String? validate(String? name) { if (name == null || name.trim().isEmpty) return 'Device name is required'; if (name.trim().length < 2) return 'Min 2 characters'; if (name.trim().length > 40) return 'Max 40 characters'; return null; } static String sanitize(String name) => name.trim().replaceAll(RegExp(r'[<>"\\]'), ''); }

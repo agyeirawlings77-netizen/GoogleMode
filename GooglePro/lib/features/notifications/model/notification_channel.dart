@@ -1,0 +1,1 @@
+class NotificationChannelModel { final String channelId; final String name; final String description; final bool enabled; const NotificationChannelModel({required this.channelId, required this.name, required this.description, this.enabled = true}); }

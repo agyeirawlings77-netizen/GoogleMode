@@ -1,0 +1,1 @@
+import 'package:dartz/dartz.dart'; import 'package:injectable/injectable.dart'; import '../../entities/user_entity.dart'; import '../../repositories/i_auth_repository.dart'; @injectable class BiometricLoginUseCase { final IAuthRepository _repo; BiometricLoginUseCase(this._repo); Future<Either<String, UserEntity>> call() => _repo.signInWithBiometric(); }

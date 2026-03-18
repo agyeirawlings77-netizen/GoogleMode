@@ -1,0 +1,1 @@
+import 'package:flutter/material.dart'; class RtlSupport { static const _rtlLanguages = ['ar', 'he', 'fa', 'ur']; static bool isRtl(String languageCode) => _rtlLanguages.contains(languageCode); static TextDirection directionFor(String languageCode) => isRtl(languageCode) ? TextDirection.rtl : TextDirection.ltr; }

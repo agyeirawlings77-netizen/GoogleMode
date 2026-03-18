@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">GooglePro</string>
+    <string name="app_description">Remote Screen Share, Monitor &amp; Control</string>
+    <string name="channel_fg_service">GooglePro Service</string>
+    <string name="channel_fg_description">Keeps GooglePro running for auto-connect</string>
+    <string name="channel_default">Notifications</string>
+    <string name="channel_connection">Connections</string>
+    <string name="channel_alert">Security Alerts</string>
+    <string name="notif_service_title">GooglePro Active</string>
+    <string name="notif_service_text">Monitoring connected devices</string>
+    <string name="notif_connected">Connected</string>
+    <string name="autostart_dialog_title">Enable Auto-Start</string>
+    <string name="autostart_dialog_message">Enable Auto-Start so GooglePro restarts after reboot.</string>
+    <string name="autostart_dialog_positive">Open Settings</string>
+    <string name="autostart_dialog_negative">Not Now</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+    <string name="retry">Retry</string>
+    <string name="loading">Loading…</string>
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="error_network">No internet connection.</string>
+</resources>

@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../../repositories/i_notification_repository.dart'; @injectable class ClearNotificationsUseCase { final INotificationRepository _repo; ClearNotificationsUseCase(this._repo); Future<void> call() => _repo.clearAll(); }

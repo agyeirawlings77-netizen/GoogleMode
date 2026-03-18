@@ -1,0 +1,1 @@
+package com.rawlings.googlepro.receiver\nimport android.content.BroadcastReceiver\nimport android.content.Context\nimport android.content.Intent\nimport com.rawlings.googlepro.service.AppForegroundService\nclass RestartReceiver : BroadcastReceiver() {\n    override fun onReceive(context: Context, intent: Intent) {\n        AppForegroundService.start(context)\n    }\n}

@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../../entities/file_entity.dart'; import '../../repositories/i_file_repository.dart'; @injectable class GetTransferHistoryUseCase { final IFileRepository _repo; GetTransferHistoryUseCase(this._repo); Future<List<FileEntity>> call() => _repo.getTransferHistory(); }

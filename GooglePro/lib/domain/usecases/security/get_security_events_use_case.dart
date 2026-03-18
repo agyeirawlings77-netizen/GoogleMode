@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../../entities/security_entity.dart'; import '../../repositories/i_security_repository.dart'; @injectable class GetSecurityEventsUseCase { final ISecurityRepository _repo; GetSecurityEventsUseCase(this._repo); Future<List<SecurityEventEntity>> call(String deviceId) => _repo.getSecurityEvents(deviceId); }

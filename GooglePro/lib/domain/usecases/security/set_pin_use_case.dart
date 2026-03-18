@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../../repositories/i_security_repository.dart'; @injectable class SetPinUseCase { final ISecurityRepository _repo; SetPinUseCase(this._repo); Future<void> call(String pin) => _repo.setPin(pin); }

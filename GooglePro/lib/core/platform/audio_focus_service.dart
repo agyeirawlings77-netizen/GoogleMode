@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../utils/app_logger.dart'; @singleton class AudioFocusService { bool _hasFocus = false; bool get hasFocus => _hasFocus; Future<void> requestFocus() async { _hasFocus = true; AppLogger.debug('Audio focus requested'); } Future<void> abandonFocus() async { _hasFocus = false; AppLogger.debug('Audio focus abandoned'); } }

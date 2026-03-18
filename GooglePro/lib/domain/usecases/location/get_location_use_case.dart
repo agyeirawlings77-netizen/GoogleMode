@@ -1,0 +1,1 @@
+import 'package:dartz/dartz.dart'; import 'package:injectable/injectable.dart'; import '../../entities/location_entity.dart'; import '../../repositories/i_location_repository.dart'; @injectable class GetLocationUseCase { final ILocationRepository _repo; GetLocationUseCase(this._repo); Future<Either<String, LocationEntity>> call() => _repo.getCurrentLocation(); }

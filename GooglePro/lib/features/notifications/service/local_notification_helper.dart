@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import 'notification_service.dart'; @singleton class LocalNotificationHelper { final NotificationService _svc; LocalNotificationHelper(this._svc); Future<void> init() => _svc.initialize(); Future<void> requestPermission() => _svc.requestPermission(); }

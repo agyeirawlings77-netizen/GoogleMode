@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; @injectable class GeocodingService { Future<String?> reverseGeocode(double lat, double lng) async { return '${lat.toStringAsFixed(4)}, ${lng.toStringAsFixed(4)}'; } Future<Map<String, dynamic>?> search(String query) async => null; }

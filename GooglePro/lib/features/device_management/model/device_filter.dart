@@ -1,0 +1,1 @@
+enum DeviceFilter { all, online, offline, trusted } extension DeviceFilterExt on DeviceFilter { String get label { switch(this) { case DeviceFilter.all: return 'All'; case DeviceFilter.online: return 'Online'; case DeviceFilter.offline: return 'Offline'; case DeviceFilter.trusted: return 'Trusted'; } } }

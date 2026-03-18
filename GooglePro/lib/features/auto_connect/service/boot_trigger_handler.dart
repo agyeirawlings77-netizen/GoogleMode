@@ -1,0 +1,1 @@
+import 'dart:async'; import 'package:injectable/injectable.dart'; import '../../../core/utils/app_logger.dart'; @injectable class BootTriggerHandler { Future<void> handleBootComplete() async { AppLogger.info('Boot complete: starting auto-connect services'); } }

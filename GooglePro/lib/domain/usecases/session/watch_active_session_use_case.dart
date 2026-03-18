@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../../entities/session_entity.dart'; import '../../repositories/i_session_repository.dart'; @injectable class WatchActiveSessionUseCase { final ISessionRepository _repo; WatchActiveSessionUseCase(this._repo); Stream<SessionEntity?> call(String userId) => _repo.watchActiveSession(userId); }

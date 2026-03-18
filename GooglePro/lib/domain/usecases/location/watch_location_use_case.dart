@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../../entities/location_entity.dart'; import '../../repositories/i_location_repository.dart'; @injectable class WatchLocationUseCase { final ILocationRepository _repo; WatchLocationUseCase(this._repo); Stream<LocationEntity> call() => _repo.watchLocation(); }

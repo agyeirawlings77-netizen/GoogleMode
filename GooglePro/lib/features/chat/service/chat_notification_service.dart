@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; @injectable class ChatNotificationService { Future<void> showMessageNotification(String sender, String text) async {} Future<void> cancelChatNotifications(String sessionId) async {} }

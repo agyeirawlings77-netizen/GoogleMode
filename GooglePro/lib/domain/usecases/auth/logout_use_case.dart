@@ -1,0 +1,1 @@
+import 'package:dartz/dartz.dart'; import 'package:injectable/injectable.dart'; import '../../repositories/i_auth_repository.dart'; @injectable class LogoutUseCase { final IAuthRepository _repo; LogoutUseCase(this._repo); Future<Either<String, void>> call() => _repo.signOut(); }

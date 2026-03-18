@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../../entities/session_entity.dart'; import '../../repositories/i_session_repository.dart'; @injectable class GetSessionHistoryUseCase { final ISessionRepository _repo; GetSessionHistoryUseCase(this._repo); Future<List<SessionEntity>> call(String userId) => _repo.getSessionHistory(userId); }

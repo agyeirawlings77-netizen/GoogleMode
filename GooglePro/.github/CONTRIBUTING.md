@@ -1,0 +1,1 @@
+# Contributing to GooglePro\n\n## Getting Started\n1. Fork the repository\n2. Create feature branch\n3. Make changes with tests\n4. Submit pull request\n\n## Code Style\n- Follow Dart/Flutter style guide\n- Add tests for new features\n- Keep blocs thin — business logic in usecases\n

@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../../repositories/i_notification_repository.dart'; @injectable class MarkNotificationReadUseCase { final INotificationRepository _repo; MarkNotificationReadUseCase(this._repo); Future<void> call(String id) => _repo.markRead(id); }

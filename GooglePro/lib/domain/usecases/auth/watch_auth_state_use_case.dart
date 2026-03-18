@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../../entities/user_entity.dart'; import '../../repositories/i_auth_repository.dart'; @injectable class WatchAuthStateUseCase { final IAuthRepository _repo; WatchAuthStateUseCase(this._repo); Stream<UserEntity?> call() => _repo.authStateChanges; }

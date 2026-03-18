@@ -1,0 +1,1 @@
+import 'package:flutter/material.dart'; import '../theme/app_theme.dart'; mixin ThemeMixin<T extends StatefulWidget> on State<T> { bool get isDark => Theme.of(context).brightness == Brightness.dark; Color get primaryColor => AppTheme.primaryColor; Color get cardColor => AppTheme.darkCard; Color get bgColor => AppTheme.darkBg; }

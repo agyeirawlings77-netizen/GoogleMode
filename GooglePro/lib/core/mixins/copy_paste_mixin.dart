@@ -1,0 +1,1 @@
+import 'package:flutter/services.dart'; mixin CopyPasteMixin { Future<void> copyToClipboard(String text) => Clipboard.setData(ClipboardData(text: text)); Future<String?> pasteFromClipboard() async { final d = await Clipboard.getData(Clipboard.kTextPlain); return d?.text; } }

@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../../../core/utils/app_logger.dart'; @singleton class AppCheckService { Future<void> initialize() async { AppLogger.info('AppCheck: initialized'); } }

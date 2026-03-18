@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../utils/app_logger.dart'; @singleton class MediaScannerService { Future<void> scanFile(String path) async { AppLogger.debug('Media scan: $path'); } Future<void> scanDirectory(String directory) async { AppLogger.debug('Media scan dir: $directory'); } }

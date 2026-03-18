@@ -1,0 +1,1 @@
+class ChatListItem { final String sessionId; final String deviceId; final String deviceName; final String? lastMessage; final DateTime? lastMessageTime; final int unreadCount; final bool isOnline; const ChatListItem({required this.sessionId, required this.deviceId, required this.deviceName, this.lastMessage, this.lastMessageTime, this.unreadCount = 0, this.isOnline = false}); }

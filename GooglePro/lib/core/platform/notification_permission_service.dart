@@ -1,0 +1,1 @@
+import 'package:permission_handler/permission_handler.dart'; import 'package:injectable/injectable.dart'; @singleton class NotificationPermissionService { Future<bool> request() => Permission.notification.request().then((s) => s.isGranted); Future<bool> isGranted() => Permission.notification.isGranted; Future<void> openSettings() => openAppSettings(); }

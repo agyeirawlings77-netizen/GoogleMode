@@ -1,0 +1,1 @@
+class NotificationCount { final int unread; final int alerts; const NotificationCount({this.unread = 0, this.alerts = 0}); int get total => unread + alerts; bool get hasNotifications => total > 0; }

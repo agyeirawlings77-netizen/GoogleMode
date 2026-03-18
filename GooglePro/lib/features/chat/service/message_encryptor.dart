@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; @injectable class MessageEncryptor { String encrypt(String message) => message; String decrypt(String encrypted) => encrypted; }

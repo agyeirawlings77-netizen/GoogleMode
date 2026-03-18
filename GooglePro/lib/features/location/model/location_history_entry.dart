@@ -1,0 +1,1 @@
+class LocationHistoryEntry { final double latitude; final double longitude; final DateTime timestamp; final String? label; const LocationHistoryEntry({required this.latitude, required this.longitude, required this.timestamp, this.label}); }

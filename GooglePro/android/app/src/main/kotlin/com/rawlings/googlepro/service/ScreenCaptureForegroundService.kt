@@ -1,0 +1,1 @@
+package com.rawlings.googlepro.service\nimport android.app.Service\nimport android.content.Intent\nimport android.os.IBinder\nclass ScreenCaptureForegroundService : Service() {\n    override fun onStartCommand(intent: Intent?, f: Int, s: Int) = START_STICKY\n    override fun onBind(i: Intent?): IBinder? = null\n}

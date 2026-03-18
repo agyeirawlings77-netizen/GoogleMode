@@ -1,0 +1,34 @@
+{
+  "project_info": {
+    "project_number": "458149596472",
+    "project_id": "pro-c76ee",
+    "storage_bucket": "pro-c76ee.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:458149596472:android:771af17fbc2a4434ac45cd",
+        "android_client_info": {
+          "package_name": "com.rawlings.GooglePro"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "458149596472-r55k5k5adbac8j9qu6tbrhoo733daqu0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCNRd8DGLWMVPo0cCpn1DSGNyiS-dUPwbw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,1 @@
+import 'package:flutter/material.dart'; import 'package:go_router/go_router.dart'; mixin NavigationMixin<T extends StatefulWidget> on State<T> { void navigateTo(String route, {Object? extra}) => context.push(route, extra: extra); void navigateAndReplace(String route) => context.go(route); void pop([Object? result]) => context.pop(result); bool get canPop => context.canPop(); }

@@ -1,0 +1,1 @@
+import 'ai_message.dart'; class AiConversation { final String conversationId; final List<AiMessage> messages; final DateTime createdAt; const AiConversation({required this.conversationId, this.messages = const [], required this.createdAt}); }

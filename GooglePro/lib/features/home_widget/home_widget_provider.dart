@@ -1,0 +1,1 @@
+// Android Home Widget Provider setup\n// Uses home_widget package to show device count\n// AppWidgetProvider registered in AndroidManifest.xml\n// Data updated via HomeWidgetUpdater.updateDeviceCount()

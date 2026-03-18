@@ -1,0 +1,1 @@
+class LocationAlert { final String alertId; final String deviceId; final String message; final DateTime timestamp; final bool isRead; const LocationAlert({required this.alertId, required this.deviceId, required this.message, required this.timestamp, this.isRead = false}); }

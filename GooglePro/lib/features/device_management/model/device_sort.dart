@@ -1,0 +1,1 @@
+enum DeviceSort { nameAsc, nameDesc, onlineFirst, recentFirst } extension DeviceSortExt on DeviceSort { String get label { switch(this) { case DeviceSort.nameAsc: return 'Name A→Z'; case DeviceSort.nameDesc: return 'Name Z→A'; case DeviceSort.onlineFirst: return 'Online First'; case DeviceSort.recentFirst: return 'Recent First'; } } }

@@ -1,0 +1,1 @@
+import 'package:dartz/dartz.dart'; import 'package:injectable/injectable.dart'; import '../../repositories/i_device_repository.dart'; @injectable class RemoveDeviceUseCase { final IDeviceRepository _repo; RemoveDeviceUseCase(this._repo); Future<Either<String, void>> call(String deviceId) => _repo.removeDevice(deviceId); }

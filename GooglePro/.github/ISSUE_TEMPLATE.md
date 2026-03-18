@@ -1,0 +1,1 @@
+## Bug Report\n**Describe the bug:** \n**Steps to reproduce:** \n**Expected behavior:** \n**Device:** \n**Android version:** \n**GooglePro version:** \n

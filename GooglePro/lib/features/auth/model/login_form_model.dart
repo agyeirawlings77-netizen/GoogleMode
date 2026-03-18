@@ -1,0 +1,1 @@
+class LoginFormModel { final String email; final String password; const LoginFormModel({this.email = '', this.password = ''}); bool get isValid => email.contains('@') && password.length >= 6; LoginFormModel copyWith({String? email, String? password}) => LoginFormModel(email: email ?? this.email, password: password ?? this.password); }

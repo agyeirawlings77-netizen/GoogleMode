@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; @singleton class AudioService { bool _isMuted = false; bool get isMuted => _isMuted; void mute() => _isMuted = true; void unmute() => _isMuted = false; void toggleMute() => _isMuted = !_isMuted; }

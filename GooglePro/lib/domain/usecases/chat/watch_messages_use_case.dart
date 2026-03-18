@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../../entities/message_entity.dart'; import '../../repositories/i_message_repository.dart'; @injectable class WatchMessagesUseCase { final IMessageRepository _repo; WatchMessagesUseCase(this._repo); Stream<List<MessageEntity>> call(String sessionId) => _repo.watchMessages(sessionId); }

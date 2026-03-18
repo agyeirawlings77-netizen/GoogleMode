@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../utils/app_logger.dart'; @singleton class MemoryManager { final List<dynamic> _resources = []; void register(dynamic resource) => _resources.add(resource); void disposeAll() { for (final r in _resources) { try { (r as dynamic).dispose?.call(); } catch (_) {} } _resources.clear(); AppLogger.info('All resources disposed'); } }

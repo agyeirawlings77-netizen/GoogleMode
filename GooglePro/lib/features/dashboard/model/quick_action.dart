@@ -1,0 +1,1 @@
+import 'package:flutter/material.dart'; class QuickAction { final String id; final String label; final IconData icon; final Color color; final String route; const QuickAction({required this.id, required this.label, required this.icon, required this.color, required this.route}); }

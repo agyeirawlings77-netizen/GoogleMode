@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../../entities/message_entity.dart'; import '../../repositories/i_message_repository.dart'; @injectable class GetMessagesUseCase { final IMessageRepository _repo; GetMessagesUseCase(this._repo); Future<List<MessageEntity>> call(String sessionId, {int limit = 50}) => _repo.getMessages(sessionId, limit: limit); }

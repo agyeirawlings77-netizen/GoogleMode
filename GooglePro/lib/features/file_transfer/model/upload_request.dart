@@ -1,0 +1,1 @@
+class UploadRequest { final String targetDeviceId; final String fileName; final List<int> data; final String mimeType; const UploadRequest({required this.targetDeviceId, required this.fileName, required this.data, required this.mimeType}); int get sizeBytes => data.length; }

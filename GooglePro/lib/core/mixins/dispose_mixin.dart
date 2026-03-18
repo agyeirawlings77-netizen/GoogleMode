@@ -1,0 +1,1 @@
+mixin DisposeMixin { final List<void Function()> _disposeCallbacks = []; void addDisposeCallback(void Function() cb) => _disposeCallbacks.add(cb); void disposeAll() { for (final cb in _disposeCallbacks) { try { cb(); } catch (_) {} } _disposeCallbacks.clear(); } }

@@ -1,0 +1,1 @@
+import 'package:flutter_bloc/flutter_bloc.dart'; class NotificationCubit extends Cubit<int> { NotificationCubit() : super(0); void setCount(int n) => emit(n); void increment() => emit(state + 1); void clear() => emit(0); }

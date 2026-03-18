@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../../entities/device_entity.dart'; import '../../repositories/i_device_repository.dart'; @injectable class GetThisDeviceUseCase { final IDeviceRepository _repo; GetThisDeviceUseCase(this._repo); Future<DeviceEntity?> call() => _repo.getThisDevice(); }

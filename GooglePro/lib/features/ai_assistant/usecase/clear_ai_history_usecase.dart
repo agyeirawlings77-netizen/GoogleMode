@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../service/gemini_service.dart'; @injectable class ClearAiHistoryUsecase { final GeminiService _svc; ClearAiHistoryUsecase(this._svc); void call() => _svc.resetChat(); }

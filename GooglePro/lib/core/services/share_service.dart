@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import 'package:share_plus/share_plus.dart'; @singleton class ShareService { Future<void> shareText(String text, {String? subject}) => Share.share(text, subject: subject); Future<void> shareFile(String path, {String? text}) => Share.shareXFiles([XFile(path)], text: text); }

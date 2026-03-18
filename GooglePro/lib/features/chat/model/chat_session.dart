@@ -1,0 +1,1 @@
+class ChatSession { final String sessionId; final String deviceId; final String deviceName; final String? lastMessage; final DateTime? lastMessageTime; final int unreadCount; const ChatSession({required this.sessionId, required this.deviceId, required this.deviceName, this.lastMessage, this.lastMessageTime, this.unreadCount = 0}); }

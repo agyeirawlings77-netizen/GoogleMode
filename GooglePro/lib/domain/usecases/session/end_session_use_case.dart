@@ -1,0 +1,1 @@
+import 'package:dartz/dartz.dart'; import 'package:injectable/injectable.dart'; import '../../repositories/i_session_repository.dart'; @injectable class EndSessionUseCase { final ISessionRepository _repo; EndSessionUseCase(this._repo); Future<Either<String, void>> call(String sessionId) => _repo.endSession(sessionId); }

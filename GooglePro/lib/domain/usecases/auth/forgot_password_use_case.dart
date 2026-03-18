@@ -1,0 +1,1 @@
+import 'package:dartz/dartz.dart'; import 'package:injectable/injectable.dart'; import '../../repositories/i_auth_repository.dart'; @injectable class ForgotPasswordUseCase { final IAuthRepository _repo; ForgotPasswordUseCase(this._repo); Future<Either<String, void>> call(String email) => _repo.sendPasswordReset(email); }

@@ -1,0 +1,1 @@
+import 'package:flutter/services.dart'; class ClipboardManager { static Future<void> copy(String text) => Clipboard.setData(ClipboardData(text: text)); static Future<String?> paste() async { final d = await Clipboard.getData(Clipboard.kTextPlain); return d?.text; } }

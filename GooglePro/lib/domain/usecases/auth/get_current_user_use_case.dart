@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../../entities/user_entity.dart'; import '../../repositories/i_auth_repository.dart'; @injectable class GetCurrentUserUseCase { final IAuthRepository _repo; GetCurrentUserUseCase(this._repo); Future<UserEntity?> call() => _repo.getCurrentUser(); }
