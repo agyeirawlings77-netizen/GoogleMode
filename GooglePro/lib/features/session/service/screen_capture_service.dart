@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; @injectable class ScreenCaptureService { bool _capturing = false; bool get isCapturing => _capturing; Future<void> start() async { _capturing = true; } Future<void> stop() async { _capturing = false; } Future<void> setQuality(int fps, int bitrateKbps) async {} }

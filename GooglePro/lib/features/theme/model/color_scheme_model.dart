@@ -1,0 +1,1 @@
+import 'package:flutter/material.dart'; class ColorSchemeModel { final Color primary; final Color accent; final Color background; final Color surface; final Color card; const ColorSchemeModel({required this.primary, required this.accent, required this.background, required this.surface, required this.card}); }

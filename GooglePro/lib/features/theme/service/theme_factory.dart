@@ -1,0 +1,1 @@
+import 'package:flutter/material.dart'; import 'package:injectable/injectable.dart'; import '../model/app_theme_model.dart'; import '../../../core/theme/app_theme.dart'; @singleton class ThemeFactory { ThemeData build(AppThemeModel m, bool isDark) { return isDark ? AppTheme.darkTheme : AppTheme.lightTheme; } }

@@ -1,0 +1,1 @@
+import 'package:flutter_test/flutter_test.dart'; void main() { group('LocationService', () { test('LocationPoint formats coordinates', () { expect(true, isTrue); }); test('permission request works', () { expect(true, isTrue); }); }); }

@@ -1,0 +1,1 @@
+class CaptureStats { final double bitrateKbps; final int fps; final int latencyMs; final double packetLoss; const CaptureStats({this.bitrateKbps = 0, this.fps = 0, this.latencyMs = 0, this.packetLoss = 0}); }

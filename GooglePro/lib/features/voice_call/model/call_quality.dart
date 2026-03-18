@@ -1,0 +1,1 @@
+enum CallQuality { poor, fair, good, excellent } extension CallQualityExt on CallQuality { String get label { switch(this) { case CallQuality.excellent: return 'Excellent'; case CallQuality.good: return 'Good'; case CallQuality.fair: return 'Fair'; case CallQuality.poor: return 'Poor'; } } }

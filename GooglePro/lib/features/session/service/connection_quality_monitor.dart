@@ -1,0 +1,1 @@
+import 'dart:async'; import 'package:injectable/injectable.dart'; import '../../webrtc/model/webrtc_state.dart'; @injectable class ConnectionQualityMonitor { final _ctrl = StreamController<double>.broadcast(); Stream<double> get qualityStream => _ctrl.stream; void update(WebRtcStats stats) { _ctrl.add(stats.qualityScore); } void dispose() => _ctrl.close(); }

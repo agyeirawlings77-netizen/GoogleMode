@@ -1,0 +1,1 @@
+#!/usr/bin/env bash\n# Generate app icons from assets/icons/icon.png\n# flutter pub run flutter_launcher_icons\necho 'Run: flutter pub run flutter_launcher_icons'\necho 'Ensure flutter_launcher_icons is in pubspec.yaml'

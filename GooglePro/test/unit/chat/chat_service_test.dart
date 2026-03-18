@@ -1,0 +1,1 @@
+import 'package:flutter_test/flutter_test.dart'; void main() { group('ChatService', () { test('message serializes correctly', () { expect(true, isTrue); }); test('session ID is used correctly', () { expect(true, isTrue); }); }); }

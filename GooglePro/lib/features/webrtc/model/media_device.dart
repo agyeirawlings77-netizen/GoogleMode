@@ -1,0 +1,1 @@
+class MediaDevice { final String deviceId; final String label; final String kind; const MediaDevice({required this.deviceId, required this.label, required this.kind}); bool get isAudioInput => kind == 'audioinput'; bool get isVideoInput => kind == 'videoinput'; bool get isAudioOutput => kind == 'audiooutput'; }

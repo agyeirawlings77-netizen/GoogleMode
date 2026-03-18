@@ -1,0 +1,1 @@
+import 'dart:async'; import 'package:injectable/injectable.dart'; @injectable class OfferTimeoutHandler { Timer? _timer; void startTimeout({required Duration timeout, required void Function() onTimeout}) { _timer?.cancel(); _timer = Timer(timeout, onTimeout); } void cancel() => _timer?.cancel(); void dispose() => _timer?.cancel(); }

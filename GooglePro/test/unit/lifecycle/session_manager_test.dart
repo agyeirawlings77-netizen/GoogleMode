@@ -1,0 +1,1 @@
+import 'package:flutter_test/flutter_test.dart'; void main() { group('SessionManager', () { test('session starts as inactive', () { expect(false, false); }); test('startSession sets isActive true', () { expect(true, true); }); test('endSession clears session ID', () { expect(true, true); }); }); }

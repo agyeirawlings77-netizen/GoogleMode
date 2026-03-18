@@ -1,0 +1,1 @@
+class RemoteSession { final String sessionId; final String targetDeviceId; final bool isEnabled; final DateTime startedAt; const RemoteSession({required this.sessionId, required this.targetDeviceId, required this.isEnabled, required this.startedAt}); }

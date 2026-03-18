@@ -1,0 +1,1 @@
+import 'package:flutter_bloc/flutter_bloc.dart'; import '../state/trusted_device_detail_state.dart'; class TrustedDetailCubit extends Cubit<TrustedDetailState> { TrustedDetailCubit() : super(const TrustedDetailInitial()); void setOnline(bool v) => emit(TrustedDetailLoaded(isOnline: v, lastSeen: DateTime.now())); }

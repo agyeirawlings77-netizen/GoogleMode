@@ -1,0 +1,1 @@
+class DtlsConfig { static const bool enabled = true; static const int maxRetransmits = 3; static const Duration timeout = Duration(seconds: 10); }

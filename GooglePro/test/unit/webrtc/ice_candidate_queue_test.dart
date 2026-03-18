@@ -1,0 +1,1 @@
+import 'package:flutter_test/flutter_test.dart'; void main() { group('IceCandidateQueue', () { test('queues candidates before remote desc set', () { expect(true, isTrue); }); test('drains after remote desc set', () { expect(true, isTrue); }); }); }

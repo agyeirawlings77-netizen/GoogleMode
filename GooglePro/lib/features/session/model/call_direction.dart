@@ -1,0 +1,1 @@
+enum CallDirection { outgoing, incoming } extension CallDirectionExt on CallDirection { bool get isOutgoing => this == CallDirection.outgoing; bool get isIncoming => this == CallDirection.incoming; }

@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; @injectable class RemoteInputHandler { Future<void> tapAt(double x, double y) async {} Future<void> swipe(double x1, double y1, double x2, double y2) async {} Future<void> keyPress(int keyCode) async {} Future<void> typeText(String text) async {} }

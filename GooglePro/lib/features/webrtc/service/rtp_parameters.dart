@@ -1,0 +1,1 @@
+class RtpParameters { static Map<String, dynamic> videoParams({int maxBitrate = 2000000}) => {'video': {'maxBitrate': maxBitrate, 'maxFramerate': 30, 'scaleResolutionDownBy': maxBitrate < 500000 ? 4.0 : maxBitrate < 1000000 ? 2.0 : 1.0}}; static Map<String, dynamic> audioParams() => {'audio': {'maxBitrate': 128000, 'dtx': true}}; }

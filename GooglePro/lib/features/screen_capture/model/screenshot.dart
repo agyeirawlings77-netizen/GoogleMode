@@ -1,0 +1,1 @@
+class Screenshot { final String screenshotId; final List<int> data; final int width; final int height; final DateTime capturedAt; const Screenshot({required this.screenshotId, required this.data, required this.width, required this.height, required this.capturedAt}); int get sizeBytes => data.length; }

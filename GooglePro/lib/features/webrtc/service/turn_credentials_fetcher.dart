@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../../../core/constants/app_constants.dart'; @injectable class TurnCredentialsFetcher { Map<String, dynamic> getStaticCredentials() => {'urls': AppConstants.turnUrl, 'username': AppConstants.turnUsername, 'credential': AppConstants.turnPassword}; Future<Map<String, dynamic>?> fetchDynamic() async => null; }

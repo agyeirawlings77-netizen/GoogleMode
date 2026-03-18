@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; @injectable class MediaDeviceManager { Future<List<Map<String, dynamic>>> getDevices() async => []; Future<void> switchAudioOutput(String deviceId) async {} }

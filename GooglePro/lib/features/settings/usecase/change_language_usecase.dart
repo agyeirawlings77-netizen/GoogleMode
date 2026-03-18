@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; import '../repository/settings_repository.dart'; import '../model/app_settings.dart'; @injectable class ChangeLanguageUsecase { final SettingsRepository _repo; ChangeLanguageUsecase(this._repo); Future<void> call(String lang) => _repo.saveSettings(_repo.getSettings().copyWith(language: lang)); }

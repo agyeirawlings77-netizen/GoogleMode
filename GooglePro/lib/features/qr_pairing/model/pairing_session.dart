@@ -1,0 +1,1 @@
+class PairingSession { final String sessionId; final String initiatorUid; final DateTime createdAt; final bool completed; const PairingSession({required this.sessionId, required this.initiatorUid, required this.createdAt, this.completed = false}); bool get isExpired => DateTime.now().difference(createdAt).inMinutes > 5; }

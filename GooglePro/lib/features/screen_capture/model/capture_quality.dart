@@ -1,0 +1,1 @@
+enum CaptureQuality { low, medium, high, ultra } extension CaptureQualityExt on CaptureQuality { String get label { switch(this) { case CaptureQuality.low: return 'Low (360p/10fps)'; case CaptureQuality.medium: return 'Medium (720p/15fps)'; case CaptureQuality.high: return 'High (1080p/24fps)'; case CaptureQuality.ultra: return 'Ultra (1080p/30fps)'; } } }

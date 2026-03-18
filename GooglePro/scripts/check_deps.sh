@@ -1,0 +1,1 @@
+#!/usr/bin/env bash\necho 'Checking GooglePro dependencies...'\nflutter doctor\nflutter pub deps\necho 'Done.'

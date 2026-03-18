@@ -1,0 +1,1 @@
+import 'package:flutter_test/flutter_test.dart'; void main() { group('MethodChannelService', () { test('method channel name is correct', () { const name = 'com.rawlings.googlepro/methods'; expect(name.contains('googlepro'), true); }); test('event channel name is correct', () { const name = 'com.rawlings.googlepro/events'; expect(name.contains('events'), true); }); }); }

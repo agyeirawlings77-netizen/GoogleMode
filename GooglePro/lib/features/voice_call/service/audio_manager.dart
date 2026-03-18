@@ -1,0 +1,1 @@
+import 'package:injectable/injectable.dart'; @injectable class AudioManager { bool _speakerOn = false; bool _muted = false; bool get speakerOn => _speakerOn; bool get muted => _muted; void setSpeaker(bool on) => _speakerOn = on; void setMuted(bool muted) => _muted = muted; void toggleSpeaker() => _speakerOn = !_speakerOn; void toggleMute() => _muted = !_muted; }

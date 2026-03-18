@@ -1,0 +1,1 @@
+import '../../../core/utils/app_logger.dart'; class SignalingLogger { static void logSend(String type, String to) => AppLogger.debug('SIGNAL SEND [$type] → $to'); static void logReceive(String type, String from) => AppLogger.debug('SIGNAL RECV [$type] ← $from'); static void logError(String msg, [dynamic e]) => AppLogger.error('SIGNAL ERR: $msg', e); }

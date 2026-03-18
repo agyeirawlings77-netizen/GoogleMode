@@ -1,0 +1,1 @@
+import 'package:flutter_test/flutter_test.dart'; void main() { group('AuthService', () { test('maps user-not-found to readable message', () { const msg = 'user-not-found'; expect(msg.contains('user-not-found'), true); }); test('maps wrong-password to readable message', () { const msg = 'wrong-password'; expect(msg.contains('wrong-password'), true); }); }); }

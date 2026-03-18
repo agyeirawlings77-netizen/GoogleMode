@@ -1,0 +1,1 @@
+enum PeerConnectionLifecycle { new_, connecting, connected, disconnected, failed, closed } extension PCLExt on PeerConnectionLifecycle { bool get isActive => this == PeerConnectionLifecycle.connected; bool get isFailed => this == PeerConnectionLifecycle.failed || this == PeerConnectionLifecycle.closed; }

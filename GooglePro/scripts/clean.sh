@@ -1,0 +1,1 @@
+#!/usr/bin/env bash\nflutter clean\nflutter pub get\nflutter pub run build_runner build --delete-conflicting-outputs\necho 'Clean complete'
