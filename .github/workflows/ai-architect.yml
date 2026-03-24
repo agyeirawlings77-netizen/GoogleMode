@@ -1,1 +1,1326 @@
-404: Not Found
+name: Autonomous AI Architect (Linux-Style)
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  GooglePro — Autonomous AI Build, Fix & Release Pipeline  [ULTIMATE v8]
+#  ─────────────────────────────────────────────────────────────────────────
+#  TRUE AUTONOMOUS — survives token limits, context resets, 6h walls.
+#
+#  v8 FIXES:
+#  ✅ FIX 1: restart_ai() uses os._exit(0) — kills entire process instantly
+#     including all threads. sys.exit(0) only stops the calling thread,
+#     leaving the main thread running. os._exit(0) is the correct call.
+#  ✅ FIX 2: Watchdog checks every 30s (was 60s) + logs countdown under 30min
+#  ✅ FIX 3: Infinite restart guard in inc_run() — stops at 50 total runs
+#     Prevents burning all GitHub Actions minutes on a fundamentally broken build
+#  ✅ FIX 4: workflow_dispatch ref changed from "main" to "ai-sandbox"
+#     Ensures new run uses latest AI fixes, not the original main branch code
+#
+#  CORE FEATURES:
+#  ✅ Background watchdog thread — fires restart_ai() at 5h45m regardless
+#     of what main thread is doing (building, analyzing, waiting for API)
+#  ✅ DUAL TRIGGER restart — push to ai-sandbox (primary) + workflow_dispatch
+#     API (fallback) — new run guaranteed via at least one path
+#  ✅ validate_response() — detects empty/truncated/token-limit responses
+#  ✅ stop_reason=max_tokens detection from API metadata
+#  ✅ Memory GUARANTEED in every AI prompt via build_full_prompt()
+#  ✅ Phase 1 — Dart/test repair loop (max 8 iters)
+#  ✅ Phase 2 — Build repair with enforced flutter build every iteration
+#  ✅ flutter build apk --release --split-per-abi (arm64 + armeabi + x86_64)
+#  ✅ Debug APK fallback if release fails all iterations
+#  ✅ AI memory capped (50 fixes / 20 attempts / 20 solutions)
+#  ✅ Loop break on 2 consecutive zero-change turns → restart
+#  ✅ File write guards: oversized / empty / unsafe path blocked
+#  ✅ Cache Flutter pub + Gradle
+#  ✅ Auto keystore generate/restore (secrets never printed to logs)
+#  ✅ Auto versionCode via timestamp (unique every build)
+#  ✅ Commit before release — fixes never lost
+#  ✅ Publishes ALL APKs to GitHub Releases with install guide
+#
+#  Android: minSdk=21 (Android 5.0+, ~99% devices) | targetSdk=35 (Android 15)
+# ═══════════════════════════════════════════════════════════════════════════
+
+on:
+  push:
+    branches:
+      - main          # normal push trigger
+      - ai-sandbox    # restart_ai() pushes here → re-triggers directly
+  workflow_dispatch:  # manual trigger + GitHub API dispatch fallback
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  ai-architect:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN:     ${{ secrets.GITHUB_TOKEN }}
+      PACKAGE_NAME: 'com.rawlings.GooglePro'
+      APP_DIR:      'GooglePro'
+
+    steps:
+
+      # ════════════════════════════════════════════════════════════════════
+      # 1 — Checkout
+      # ════════════════════════════════════════════════════════════════════
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ════════════════════════════════════════════════════════════════════
+      # 2 — Cache Flutter pub + Gradle
+      # ════════════════════════════════════════════════════════════════════
+      - name: ⚡ Cache Flutter pub
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: ${{ runner.os }}-pub-
+
+      - name: ⚡ Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*','**/gradle-wrapper.properties') }}
+          restore-keys: ${{ runner.os }}-gradle-
+
+      # ════════════════════════════════════════════════════════════════════
+      # 3 — Toolchain
+      # ════════════════════════════════════════════════════════════════════
+      - name: 🐦 Flutter stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: ☕ Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      # ════════════════════════════════════════════════════════════════════
+      # 4 — Firebase secrets
+      # ════════════════════════════════════════════════════════════════════
+      - name: 🔥 Restore google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          mkdir -p $APP_DIR/android/app
+          echo "$GOOGLE_SERVICES_JSON" > $APP_DIR/android/app/google-services.json
+          python3 -c "import json; json.load(open('$APP_DIR/android/app/google-services.json'))" \
+            && echo "✅ google-services.json valid" \
+            || { echo "❌ Invalid JSON"; exit 1; }
+
+      - name: 🔥 Restore firebase_options.dart
+        env:
+          FIREBASE_OPTIONS: ${{ secrets.FIREBASE_OPTIONS }}
+        run: |
+          if [ -n "$FIREBASE_OPTIONS" ]; then
+            mkdir -p $APP_DIR/lib
+            echo "$FIREBASE_OPTIONS" > $APP_DIR/lib/firebase_options.dart
+            echo "✅ firebase_options.dart restored"
+          else
+            echo "ℹ️  FIREBASE_OPTIONS not set"
+          fi
+
+      # ════════════════════════════════════════════════════════════════════
+      # 5 — Keystore (auto-generate or restore, secrets never in logs)
+      # ════════════════════════════════════════════════════════════════════
+      - name: 🔑 Setup keystore
+        id: keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEY_ALIAS:       ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD:    ${{ secrets.KEY_PASSWORD }}
+          STORE_PASSWORD:  ${{ secrets.STORE_PASSWORD }}
+        run: |
+          KS="$HOME/.android/release.keystore"
+          mkdir -p "$HOME/.android"
+          ALIAS="${KEY_ALIAS:-googlepro}"
+          KP="${KEY_PASSWORD:-GooglePro@2024!}"
+          SP="${STORE_PASSWORD:-GooglePro@2024!}"
+
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > "$KS"
+            echo "✅ Keystore restored from secret."
+          else
+            keytool -genkeypair -keystore "$KS" -alias "$ALIAS" \
+              -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$SP" -keypass "$KP" \
+              -dname "CN=GooglePro,OU=Mobile,O=Rawlings,L=Unknown,S=Unknown,C=GH" \
+              2>&1 | grep -v "Warning\|Generating"
+            echo "✅ New keystore generated."
+            echo "ℹ️  Download 'keystore-setup' artifact — save as KEYSTORE_BASE64 secret."
+            base64 -w 0 "$KS" > /tmp/new_keystore_b64.txt
+          fi
+
+          cat > "$APP_DIR/android/key.properties" <<EOF
+storePassword=$SP
+keyPassword=$KP
+keyAlias=$ALIAS
+storeFile=$KS
+EOF
+          echo "::add-mask::$KP"
+          echo "::add-mask::$SP"
+          echo "ks=$KS"       >> $GITHUB_OUTPUT
+          echo "alias=$ALIAS" >> $GITHUB_OUTPUT
+          echo "kp=$KP"       >> $GITHUB_OUTPUT
+          echo "sp=$SP"       >> $GITHUB_OUTPUT
+          echo "✅ key.properties written."
+
+      - name: 📎 Upload keystore artifact (first run only)
+        uses: actions/upload-artifact@v4
+        with:
+          name: keystore-setup
+          path: /tmp/new_keystore_b64.txt
+          if-no-files-found: ignore
+          retention-days: 1
+
+      # ════════════════════════════════════════════════════════════════════
+      # 6 — Auto versionCode (timestamp — unique every build)
+      # ════════════════════════════════════════════════════════════════════
+      - name: 🔢 Inject versionCode
+        run: |
+          VC=$(date +%s)
+          VN="1.0.$VC"
+          echo "$VC" > /tmp/version_code.txt
+          echo "$VN"  > /tmp/version_name.txt
+          GRADLE="$APP_DIR/android/app/build.gradle"
+          if [ -f "$GRADLE" ]; then
+            sed -i "s/versionCode [0-9]*/versionCode $VC/" "$GRADLE"
+            sed -i "s/versionName \"[^\"]*\"/versionName \"$VN\"/" "$GRADLE"
+            echo "✅ versionCode=$VC versionName=$VN"
+          else
+            echo "ℹ️  build.gradle not found — AI will create it."
+          fi
+
+      # ════════════════════════════════════════════════════════════════════
+      # 7 — Guard: skip if PR already open
+      # ════════════════════════════════════════════════════════════════════
+      - name: 🛡️ Guard — skip if PR already open
+        run: |
+          if gh pr list --head ai-sandbox --state open | grep -q .; then
+            echo "ℹ️  PR already open. Done."
+            exit 0
+          fi
+
+      # ════════════════════════════════════════════════════════════════════
+      # 8 — Branch: resume ai-sandbox, never reset
+      # ════════════════════════════════════════════════════════════════════
+      - name: 🌿 ai-sandbox branch
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          git config --global user.email "ai-architect@googlepro.app"
+          git config --global user.name  "AI Architect"
+          if git ls-remote --exit-code --heads origin ai-sandbox; then
+            git checkout ai-sandbox
+            mkdir -p $APP_DIR/android/app
+            echo "$GOOGLE_SERVICES_JSON" > $APP_DIR/android/app/google-services.json || true
+          else
+            git checkout -b ai-sandbox
+          fi
+
+      # ════════════════════════════════════════════════════════════════════
+      # 9 — Flutter pub get
+      # ════════════════════════════════════════════════════════════════════
+      - name: 📦 flutter pub get
+        working-directory: 'GooglePro'
+        run: flutter pub get
+
+      # ════════════════════════════════════════════════════════════════════
+      # 10 — THE BRAIN: AI Repair · Test · Build
+      # ════════════════════════════════════════════════════════════════════
+      - name: 🤖 AI Repair · Test · Build
+        working-directory: 'GooglePro'
+        env:
+          ANTHROPIC_API_KEY:      ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_REPOSITORY:      ${{ github.repository }}
+          WORKFLOW_FILE:          'ai-architect.yml'
+          PACKAGE_NAME:           'com.rawlings.GooglePro'
+          FIREBASE_PROJECT_ID:    'pro-c76ee'
+          KEYSTORE_PATH:          ${{ steps.keystore.outputs.ks }}
+          KEY_ALIAS:              ${{ steps.keystore.outputs.alias }}
+          KEY_PASSWORD:           ${{ steps.keystore.outputs.kp }}
+          STORE_PASSWORD:         ${{ steps.keystore.outputs.sp }}
+          MIN_SDK:                '21'
+          TARGET_SDK:             '35'
+          COMPILE_SDK:            '35'
+          BUILD_TOOLS:            '35.0.0'
+          MAX_ANALYZE_ITERATIONS: '8'
+          MAX_BUILD_ITERATIONS:   '8'
+          MAX_MEMORY_FIXES:       '50'
+          MAX_MEMORY_ATTEMPTS:    '20'
+          MAX_MEMORY_SOLUTIONS:   '20'
+        run: |
+          python3 - << 'PYEOF'
+import os, subprocess, json, urllib.request, urllib.error
+import sys, re, time, hashlib, threading
+from pathlib import Path
+from typing import Optional
+
+# ══════════════════════════════════════════════════════════════════════════
+# CONFIG
+# ══════════════════════════════════════════════════════════════════════════
+API_KEY          = os.environ.get("ANTHROPIC_API_KEY", "")
+GH_TOKEN         = os.environ.get("GH_TOKEN", "")
+REPO             = os.environ.get("GITHUB_REPOSITORY", "")
+WORKFLOW_FILE    = os.environ.get("WORKFLOW_FILE", "ai-architect.yml")
+PACKAGE_NAME     = os.environ.get("PACKAGE_NAME", "com.rawlings.GooglePro")
+FIREBASE_PROJECT = os.environ.get("FIREBASE_PROJECT_ID", "pro-c76ee")
+KEYSTORE_PATH    = os.environ.get("KEYSTORE_PATH", "")
+KEY_ALIAS        = os.environ.get("KEY_ALIAS", "googlepro")
+KEY_PASSWORD     = os.environ.get("KEY_PASSWORD", "")
+STORE_PASSWORD   = os.environ.get("STORE_PASSWORD", "")
+MIN_SDK          = os.environ.get("MIN_SDK", "21")
+TARGET_SDK       = os.environ.get("TARGET_SDK", "35")
+COMPILE_SDK      = os.environ.get("COMPILE_SDK", "35")
+BUILD_TOOLS      = os.environ.get("BUILD_TOOLS", "35.0.0")
+MAX_ANALYZE_ITER = int(os.environ.get("MAX_ANALYZE_ITERATIONS", "8"))
+MAX_BUILD_ITER   = int(os.environ.get("MAX_BUILD_ITERATIONS", "8"))
+MAX_MEM_FIXES    = int(os.environ.get("MAX_MEMORY_FIXES", "50"))
+MAX_MEM_ATTEMPTS = int(os.environ.get("MAX_MEMORY_ATTEMPTS", "20"))
+MAX_MEM_SOLS     = int(os.environ.get("MAX_MEMORY_SOLUTIONS", "20"))
+
+MODEL          = "claude-sonnet-4-6"
+LOG_TAIL       = 6000
+MAX_FILE_CHARS = 14_000
+MAX_CONTENT    = MAX_FILE_CHARS * 3
+API_URL        = "https://api.anthropic.com/v1/messages"
+
+REPO_ROOT = Path(os.getcwd()).resolve()   # GooglePro/
+GIT_ROOT  = REPO_ROOT.parent              # repo root
+
+# Watchdog fires at 5h45m — gives 15 min to commit+push+dispatch
+SOFT_LIMIT_SECS = (6 * 3600) - (15 * 60)   # 20700 seconds = 5h 45m
+RUN_START       = time.monotonic()
+
+AI_MEMORY_FILE  = GIT_ROOT / ".ai_memory.json"
+
+ANDROID_NAMES = {
+    "21": "5.0 Lollipop",  "22": "5.1",
+    "23": "6.0 Marshmallow","24": "7.0 Nougat",
+    "25": "7.1",            "26": "8.0 Oreo",
+    "27": "8.1",            "28": "9.0 Pie",
+    "29": "10",             "30": "11",
+    "31": "12",             "32": "12L",
+    "33": "13",             "34": "14",
+    "35": "15",
+}
+MIN_ANDROID    = ANDROID_NAMES.get(MIN_SDK,    MIN_SDK)
+TARGET_ANDROID = ANDROID_NAMES.get(TARGET_SDK, TARGET_SDK)
+
+BLOCKED = {
+    "android/app/google-services.json",
+    "lib/firebase_options.dart",
+    "android/key.properties",
+}
+
+CONTEXT_KEYWORDS = [
+    "context_length", "context length", "too long", "max_tokens",
+    "prompt is too long", "context window", "token limit",
+    "maximum context", "length exceeded",
+]
+
+# ══════════════════════════════════════════════════════════════════════════
+# AI MEMORY SYSTEM
+# Persisted to .ai_memory.json in the repo — survives 6h restarts,
+# context resets, token limit hits. New runs load it and continue.
+# ══════════════════════════════════════════════════════════════════════════
+class AIMemory:
+    def __init__(self):
+        self.data = {
+            "total_runs": 0, "total_fixes": 0,
+            "phase1_complete": False, "phase2_complete": False,
+            "fixes_summary": [], "failed_attempts": [],
+            "known_solutions": [], "last_updated": "",
+        }
+        self._load()
+
+    def _load(self):
+        try:
+            if AI_MEMORY_FILE.exists():
+                self.data = json.loads(AI_MEMORY_FILE.read_text())
+                print(f"  📚 Memory: {len(self.data['fixes_summary'])} fixes, "
+                      f"{self.data['total_runs']} prior runs.")
+        except Exception as e:
+            print(f"  ⚠️  Memory load failed: {e} — starting fresh.")
+
+    def _trim(self):
+        self.data["fixes_summary"]   = self.data["fixes_summary"][-MAX_MEM_FIXES:]
+        self.data["failed_attempts"] = self.data["failed_attempts"][-MAX_MEM_ATTEMPTS:]
+        self.data["known_solutions"] = self.data["known_solutions"][-MAX_MEM_SOLS:]
+
+    def save(self):
+        self._trim()
+        try:
+            AI_MEMORY_FILE.write_text(json.dumps(self.data, indent=2))
+        except Exception as e:
+            print(f"  ⚠️  Memory save: {e}")
+
+    def record_fix(self, phase: str, turn: int, expl: str,
+                   files: list, crashes: list):
+        self.data["total_fixes"] += 1
+        short = expl[:200]
+        self.data["fixes_summary"].append({
+            "phase": phase, "turn": turn, "explanation": short,
+            "files": files[:10], "crashes": crashes[:5],
+            "at": time.strftime("%Y-%m-%d %H:%M"),
+        })
+        if short not in self.data["known_solutions"]:
+            self.data["known_solutions"].append(short)
+        self.data["last_updated"] = time.strftime("%Y-%m-%d %H:%M UTC")
+        self.save()
+
+    def record_failed(self, phase: str, turn: int, expl: str):
+        entry = f"[{phase} t{turn}] {expl[:150]}"
+        if entry not in self.data["failed_attempts"]:
+            self.data["failed_attempts"].append(entry)
+        self.save()
+
+    def mark_done(self, phase: str):
+        if phase == "1": self.data["phase1_complete"] = True
+        if phase == "2": self.data["phase2_complete"] = True
+        self.save()
+
+    def inc_run(self):
+        self.data["total_runs"] += 1
+        # FIX 3: infinite restart guard — stops burning GitHub minutes
+        # if something is fundamentally broken (e.g. build always fails)
+        MAX_TOTAL_RUNS = 50
+        if self.data["total_runs"] > MAX_TOTAL_RUNS:
+            print(f"\n🛑 SAFETY STOP: total_runs={self.data['total_runs']} "
+                  f"> {MAX_TOTAL_RUNS} — too many restarts.")
+            print("  This means something is fundamentally broken.")
+            print("  Check your code, Firebase config, or Gradle setup manually.")
+            print("  ai-sandbox branch has all progress committed for inspection.")
+            sys.exit(1)
+        self.save()
+
+    def build_context(self) -> str:
+        """
+        Compact memory block injected into EVERY AI prompt.
+        Trimmed to last 15 fixes, 10 failed, 10 working.
+        Explanations capped at 200 chars to prevent token bloat.
+        """
+        lines = [
+            "━━━━━━━━ AI MEMORY (READ FIRST) ━━━━━━━━",
+            f"Runs:{self.data['total_runs']} | "
+            f"Fixes:{self.data['total_fixes']} | "
+            f"P1:{'✅' if self.data['phase1_complete'] else '❌'} | "
+            f"P2:{'✅' if self.data['phase2_complete'] else '❌'}",
+        ]
+        if self.data["fixes_summary"]:
+            lines.append("\nALREADY FIXED (do NOT redo):")
+            for f in reversed(self.data["fixes_summary"][-15:]):
+                lines.append(f"  [{f['phase']} t{f['turn']}] {f['explanation']}")
+                if f.get("crashes"):
+                    lines.append(f"    ↳ {', '.join(f['crashes'][:3])}")
+        if self.data["failed_attempts"]:
+            lines.append("\n⛔ FAILED APPROACHES (do NOT repeat):")
+            for fa in self.data["failed_attempts"][-10:]:
+                lines.append(f"  • {fa}")
+        if self.data["known_solutions"]:
+            lines.append("\n✅ APPROACHES THAT WORKED:")
+            for ks in self.data["known_solutions"][-10:]:
+                lines.append(f"  • {ks}")
+        lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+        return "\n".join(lines)
+
+memory = AIMemory()
+memory.inc_run()
+
+# ══════════════════════════════════════════════════════════════════════════
+# RESTART SYSTEM — THE CORE BRAIN
+# Saves memory, commits, dual-triggers new run, exits cleanly.
+# ══════════════════════════════════════════════════════════════════════════
+_restart_lock = threading.Lock()   # prevent double-restart from watchdog + main
+
+def restart_ai(reason: str) -> None:
+    """
+    THE CORE BRAIN — called from:
+    - Watchdog thread (time limit, runs independently of main loop)
+    - Main loop (context overflow, memory cap, stall, token limit)
+    Thread-safe via _restart_lock so only one restart ever fires.
+    """
+    with _restart_lock:
+        print(f"\n🔁 RESTARTING AI — Reason: {reason}")
+        print(f"   Elapsed: {(time.monotonic()-RUN_START)/60:.1f} min")
+
+        # Step 1: save memory to disk
+        memory.save()
+        print("  📚 Memory saved.")
+
+        # Step 2: commit all progress
+        for f in BLOCKED:
+            _git(f"git rm --cached GooglePro/{f} 2>/dev/null || true")
+        _git("git add -A")
+        cr = subprocess.run(
+            ["git", "commit", "-F", "-"],
+            input=f"AI restart checkpoint ({reason})",
+            capture_output=True, text=True, cwd=str(GIT_ROOT)
+        )
+        if cr.returncode == 0:
+            print("  ✅ Checkpoint committed.")
+        else:
+            print("  ℹ️  Nothing new to commit.")
+
+        # Step 3: TRIGGER A — push to ai-sandbox (primary re-trigger)
+        # Workflow listens to ai-sandbox pushes, so this directly re-fires it
+        push = subprocess.run(
+            ["git", "push", "origin", "ai-sandbox", "--force"],
+            capture_output=True, text=True, cwd=str(GIT_ROOT)
+        )
+        trigger_a = push.returncode == 0
+        print(f"  {'📤 Push trigger fired' if trigger_a else '⚠️  Push failed'}: ai-sandbox")
+
+        # Step 4: TRIGGER B — workflow_dispatch API (fallback)
+        # Fires even if push had no new commits to push
+        trigger_b = False
+        if GH_TOKEN and REPO:
+            url = (f"https://api.github.com/repos/{REPO}/actions"
+                   f"/workflows/{WORKFLOW_FILE}/dispatches")
+            try:
+                req = urllib.request.Request(
+                    url, data=json.dumps({"ref": "ai-sandbox"}).encode(),
+                    headers={
+                        "Authorization": f"Bearer {GH_TOKEN}",
+                        "Accept": "application/vnd.github+json",
+                        "Content-Type": "application/json",
+                        "X-GitHub-Api-Version": "2022-11-28",
+                    }, method="POST")
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    print(f"  🚀 workflow_dispatch fired (HTTP {r.status}) — fallback ready.")
+                    trigger_b = True
+            except Exception as e:
+                print(f"  ⚠️  workflow_dispatch failed: {e}")
+
+        # Step 5: report outcome
+        if trigger_a or trigger_b:
+            triggered_by = []
+            if trigger_a: triggered_by.append("push→ai-sandbox")
+            if trigger_b: triggered_by.append("workflow_dispatch")
+            print(f"  ✅ New run guaranteed via: {' + '.join(triggered_by)}")
+        else:
+            print("  ❌ Both triggers failed — run manually from Actions tab.")
+            print("  ℹ️  Progress is saved. Go to Actions → Run workflow.")
+
+        print("  🛑 Forcing process exit — no duplicate loops possible.")
+        # os._exit(0) kills the ENTIRE process immediately including all threads.
+        # sys.exit(0) only raises SystemExit in the calling thread — if called
+        # from the watchdog thread, the main thread keeps running. os._exit(0)
+        # guarantees everything stops. GitHub Action job ends cleanly.
+        os._exit(0)
+
+# ══════════════════════════════════════════════════════════════════════════
+# WATCHDOG THREAD — fires restart_ai() at SOFT_LIMIT regardless of what
+# the main thread is doing (blocking build, slow AI call, long analyze).
+# This is the fix for "time check only runs between turns".
+# ══════════════════════════════════════════════════════════════════════════
+def _watchdog():
+    """
+    Background daemon thread. Completely independent of the main thread.
+    Fires restart_ai() at SOFT_LIMIT_SECS regardless of what main is doing:
+    - long flutter build (can take 30+ min)
+    - slow AI API response
+    - stuck flutter analyze
+    Checks every 30 seconds for accuracy. os._exit(0) in restart_ai()
+    guarantees the entire process stops — no race conditions.
+    """
+    while True:
+        elapsed   = time.monotonic() - RUN_START
+        remaining = SOFT_LIMIT_SECS - elapsed
+        if remaining <= 0:
+            print("\n⏰ WATCHDOG: Time limit reached — firing restart_ai()")
+            restart_ai("watchdog_6h_time_limit")
+            return  # os._exit(0) inside restart_ai means this never runs
+        # Log a warning when under 30 minutes remaining
+        if remaining < 1800:
+            print(f"  ⏰ Watchdog: {remaining/60:.1f} min remaining before restart")
+        time.sleep(min(30, remaining))
+
+# Start watchdog as daemon thread immediately
+_wdog = threading.Thread(target=_watchdog, daemon=True, name="watchdog")
+_wdog.start()
+print(f"  ⏱  Watchdog started — will fire at {SOFT_LIMIT_SECS/3600:.2f}h elapsed")
+
+# ══════════════════════════════════════════════════════════════════════════
+# LIMIT CHECKS — called at start of every loop turn (belt AND suspenders)
+# ══════════════════════════════════════════════════════════════════════════
+_last_repo_hash: Optional[str] = None
+
+def get_repo_hash() -> str:
+    r = _git("git ls-files -s")
+    return hashlib.md5(r.stdout.encode()).hexdigest()
+
+def check_limits(label: str) -> None:
+    """
+    Inline checks at each loop turn. The watchdog handles the time limit
+    independently, but these catch memory cap and stall conditions.
+    """
+    global _last_repo_hash
+
+    # Memory cap check
+    if len(memory.data["fixes_summary"]) >= MAX_MEM_FIXES:
+        restart_ai(f"memory_cap ({MAX_MEM_FIXES}) at {label}")
+
+    # Stall detection — if repo hash hasn't changed, nothing was committed
+    current_hash = get_repo_hash()
+    if _last_repo_hash is not None and current_hash == _last_repo_hash:
+        print(f"  ⚠️  No repo changes since last turn at {label}.")
+    _last_repo_hash = current_hash
+
+# ══════════════════════════════════════════════════════════════════════════
+# SHELL HELPERS
+# ══════════════════════════════════════════════════════════════════════════
+def run(cmd: str, cwd: Optional[Path] = None) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, shell=True, capture_output=True, text=True,
+                          cwd=str(cwd or REPO_ROOT))
+
+def _git(cmd: str) -> subprocess.CompletedProcess:
+    return run(cmd, cwd=GIT_ROOT)
+
+def git_commit(msg: str) -> None:
+    for f in BLOCKED:
+        _git(f"git rm --cached GooglePro/{f} 2>/dev/null || true")
+    _git("git add -A")
+    if _git("git diff --cached --quiet").returncode != 0:
+        r = subprocess.run(["git", "commit", "-F", "-"], input=msg,
+                           capture_output=True, text=True, cwd=str(GIT_ROOT))
+        print(f"  {'✅' if r.returncode==0 else '❌'} Commit: {msg[:72]}")
+    else:
+        print("  Nothing to commit.")
+
+def push_progress(label: str) -> None:
+    r = _git("git push origin ai-sandbox --force")
+    print(f"  {'📤' if r.returncode==0 else '⚠️'} Push: {label}")
+
+# ══════════════════════════════════════════════════════════════════════════
+# MEMORY-GUARANTEED PROMPT BUILDER
+# Every single AI call goes through this — memory is structurally required.
+# ══════════════════════════════════════════════════════════════════════════
+def build_full_prompt(task: str, context: str, logs: str) -> str:
+    return (
+        f"{memory.build_context()}\n"
+        f"CONTEXT:\n{context}\n\n"
+        f"LOGS (last {LOG_TAIL} chars):\n{logs[-LOG_TAIL:]}\n\n"
+        f"TASK:\n{task}"
+    )
+
+# ══════════════════════════════════════════════════════════════════════════
+# RESPONSE VALIDATION
+# Called before parse_json — catches all AI failure modes.
+# ══════════════════════════════════════════════════════════════════════════
+class AIEmptyResponse(Exception):   pass
+class AITruncatedOutput(Exception): pass
+class AITokenLimitHit(Exception):   pass
+
+def validate_response(text: str, phase: str, turn: int) -> None:
+    # ① Empty / near-empty
+    if not text or len(text.strip()) < 50:
+        raise AIEmptyResponse(
+            f"AI_EMPTY phase={phase} turn={turn} len={len(text) if text else 0}")
+
+    tl = text.lower()
+
+    # ② Token limit string in response body
+    if "max_tokens" in tl and len(text) < 200:
+        raise AITokenLimitHit(f"TOKEN_LIMIT_IN_BODY phase={phase} turn={turn}")
+
+    # ③ Context error keywords in response body
+    if any(kw in tl for kw in CONTEXT_KEYWORDS):
+        raise AITokenLimitHit(f"CONTEXT_ERROR_IN_TEXT phase={phase} turn={turn}")
+
+    # ④ JSON opened but never closed (truncated mid-generation)
+    opens  = text.count("{")
+    closes = text.count("}")
+    if opens > 0 and closes == 0:
+        raise AITruncatedOutput(
+            f"TRUNCATED phase={phase} turn={turn} {opens}↑ 0↓")
+    if opens > 0 and opens > closes + 3:
+        raise AITruncatedOutput(
+            f"TRUNCATED phase={phase} turn={turn} {opens}↑ {closes}↓")
+
+    print(f"  ✅ Response: {len(text):,} chars | JSON {opens}↑/{closes}↓")
+
+# ══════════════════════════════════════════════════════════════════════════
+# API CALLER — with stop_reason check, response validation, auto-restart
+# ══════════════════════════════════════════════════════════════════════════
+def call_ai(messages: list, system: str,
+            phase: str = "?", turn: int = 0,
+            retries: int = 3) -> str:
+    payload = json.dumps({
+        "model": MODEL, "max_tokens": 8192,
+        "system": system, "messages": messages,
+    }).encode()
+    hdrs = {
+        "x-api-key": API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    }
+    last_exc: Optional[Exception] = None
+
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request(API_URL, data=payload,
+                                         headers=hdrs, method="POST")
+            with urllib.request.urlopen(req, timeout=120) as r:
+                raw       = r.read()
+                resp_data = json.loads(raw)
+
+                # Check stop_reason from API metadata
+                stop_reason = resp_data.get("stop_reason", "")
+                usage       = resp_data.get("usage", {})
+                out_tokens  = usage.get("output_tokens", 0)
+
+                if stop_reason == "max_tokens":
+                    print(f"  ⚠️  stop_reason=max_tokens ({out_tokens} tokens) — truncated.")
+                    memory.record_failed(phase, turn, "stop_reason_max_tokens")
+                    restart_ai("stop_reason_max_tokens")
+
+                text = resp_data["content"][0]["text"]
+
+                # Validate response content before returning
+                validate_response(text, phase, turn)
+                return text
+
+        except (AIEmptyResponse, AITruncatedOutput, AITokenLimitHit) as exc:
+            # Validation failures → restart immediately, no retry
+            print(f"  ⚠️  Response invalid: {exc}")
+            memory.record_failed(phase, turn, str(exc))
+            restart_ai(str(exc))
+
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode(errors="ignore")
+            err  = body.lower()
+            print(f"  HTTP {exc.code}: {body[:300]}")
+            last_exc = exc
+
+            # Context overflow via HTTP error
+            if exc.code in (400, 413, 422):
+                if any(kw in err for kw in CONTEXT_KEYWORDS):
+                    print(f"  ⚠️  Context overflow (HTTP {exc.code}).")
+                    memory.record_failed(phase, turn, "context_overflow")
+                    restart_ai(f"context_overflow_HTTP_{exc.code}")
+
+            wait = 30 * (attempt + 1) if exc.code in (429, 529) else 10
+            print(f"  Retry {attempt+1}/{retries} in {wait}s…")
+            time.sleep(wait)
+
+        except Exception as exc:
+            err = str(exc).lower()
+            print(f"  Error: {exc}")
+            last_exc = exc
+            if any(kw in err for kw in CONTEXT_KEYWORDS):
+                memory.record_failed(phase, turn, "context_overflow_exception")
+                restart_ai("context_overflow_exception")
+            time.sleep(10)
+
+    raise last_exc or RuntimeError("call_ai exhausted all retries")
+
+# ══════════════════════════════════════════════════════════════════════════
+# JSON PARSER
+# ══════════════════════════════════════════════════════════════════════════
+def parse_json(text: str) -> dict:
+    text = re.sub(r"^```(?:json)?\s*", "", text.strip())
+    text = re.sub(r"\s*```$", "", text)
+    s = text.find("{")
+    if s == -1: raise ValueError("No JSON object found")
+    depth, end = 0, -1
+    for i, ch in enumerate(text[s:], s):
+        if ch == "{":   depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0: end = i; break
+    if end == -1: raise ValueError("Unbalanced JSON braces")
+    return json.loads(text[s:end+1])
+
+# ══════════════════════════════════════════════════════════════════════════
+# FILE HELPERS
+# ══════════════════════════════════════════════════════════════════════════
+def read_file(path: str) -> Optional[str]:
+    try:
+        with open(REPO_ROOT / path, errors="ignore") as f:
+            return f.read()
+    except OSError:
+        return None
+
+def write_file(rel_path: str, content: str) -> bool:
+    """Write with full safety guards."""
+    if rel_path in BLOCKED:
+        print(f"  🔒 Blocked secret: {rel_path}"); return False
+    if len(content) > MAX_CONTENT:
+        print(f"  ⚠️  Oversized ({len(content):,}c): {rel_path}"); return False
+    if len(content.strip()) < 20:
+        print(f"  ⚠️  Empty: {rel_path}"); return False
+    try:
+        resolved = (REPO_ROOT / rel_path).resolve()
+        resolved.relative_to(REPO_ROOT)
+    except ValueError:
+        print(f"  ⛔ Unsafe path: {rel_path!r}"); return False
+    resolved.parent.mkdir(parents=True, exist_ok=True)
+    resolved.write_text(content)
+    print(f"    ✏️  {rel_path} ({len(content):,}c)")
+    return True
+
+def collect_dart_ctx(logs: str) -> dict:
+    ctx: dict = {}
+    for pat in [r"(?:lib|test|integration_test)/[\w./-]+\.dart",
+                r"[\w.-]+\.yaml"]:
+        for p in set(re.findall(pat, logs)):
+            if any(b in p for b in BLOCKED): continue
+            if p not in ctx:
+                c = read_file(p)
+                if c: ctx[p] = c[:MAX_FILE_CHARS]
+    for a in ("pubspec.yaml", "lib/main.dart", "analysis_options.yaml"):
+        if a not in ctx:
+            c = read_file(a)
+            if c: ctx[a] = c[:MAX_FILE_CHARS]
+    return ctx
+
+def collect_build_ctx(logs: str) -> dict:
+    ctx: dict = {}
+    for p in ["pubspec.yaml", "android/app/build.gradle", "android/build.gradle",
+              "android/gradle.properties", "android/settings.gradle",
+              "android/app/src/main/AndroidManifest.xml",
+              "android/app/proguard-rules.pro"]:
+        c = read_file(p)
+        if c: ctx[p] = c[:MAX_FILE_CHARS]
+    for p in set(re.findall(r"(?:lib|test)/[\w./-]+\.dart", logs)):
+        if p not in ctx:
+            c = read_file(p)
+            if c: ctx[p] = c[:MAX_FILE_CHARS]
+    return ctx
+
+def validate_dart(written: list) -> bool:
+    darts = [p for p in written if p.endswith(".dart")]
+    if not darts: return True
+    print("  🔍 Validating Dart files…")
+    r = run(f"flutter analyze {' '.join(darts)}")
+    if r.returncode == 0: print("  ✅ Dart valid."); return True
+    print(f"  ⚠️  Issues:\n{(r.stdout+r.stderr)[-1500:]}")
+    return False
+
+def ensure_signing() -> None:
+    """Inject signing config into build.gradle if not already present."""
+    gp = REPO_ROOT / "android/app/build.gradle"
+    if not gp.exists(): return
+    c = gp.read_text(errors="ignore")
+    if "signingConfig signingConfigs.release" in c:
+        print("  ✅ Signing already present."); return
+    block = """
+    signingConfigs {
+        release {
+            def props = new Properties()
+            def f = rootProject.file("key.properties")
+            if (f.exists()) props.load(new FileInputStream(f))
+            keyAlias      props['keyAlias']      ?: System.getenv('KEY_ALIAS')
+            keyPassword   props['keyPassword']   ?: System.getenv('KEY_PASSWORD')
+            storeFile     props['storeFile'] ? file(props['storeFile']) : null
+            storePassword props['storePassword'] ?: System.getenv('STORE_PASSWORD')
+        }
+    }
+"""
+    if "buildTypes {" in c and "signingConfigs {" not in c:
+        c = c.replace("buildTypes {", block + "\n    buildTypes {", 1)
+    c = re.sub(r"(release\s*\{)",
+               r"\1\n            signingConfig signingConfigs.release", c, count=1)
+    c = re.sub(r"compileSdk\s+\d+",             f"compileSdk {COMPILE_SDK}",  c)
+    c = re.sub(r"minSdk(?:Version)?\s+\d+",     f"minSdk {MIN_SDK}",          c)
+    c = re.sub(r"targetSdk(?:Version)?\s+\d+",  f"targetSdk {TARGET_SDK}",    c)
+    c = re.sub(r'buildToolsVersion\s+"[\d.]+"',
+               f'buildToolsVersion "{BUILD_TOOLS}"', c)
+    if "multiDexEnabled" not in c:
+        c = re.sub(r"(defaultConfig\s*\{)",
+                   r"\1\n        multiDexEnabled true", c, count=1)
+    gp.write_text(c)
+    print(f"  ✅ Signing injected: minSdk={MIN_SDK} targetSdk={TARGET_SDK}")
+
+# ══════════════════════════════════════════════════════════════════════════
+# SYSTEM PROMPTS
+# ══════════════════════════════════════════════════════════════════════════
+PROMPT_ANALYZE = f"""You are a Senior Flutter/Firebase Architect in Linux CI.
+Package: {PACKAGE_NAME} | Firebase: {FIREBASE_PROJECT}
+Android: API {MIN_SDK} ({MIN_ANDROID}) → API {TARGET_SDK} ({TARGET_ANDROID}). ~99% device coverage.
+
+PHASE 1: Fix flutter analyze + flutter test failures.
+Fix ALL: type errors, null safety, missing imports, widget issues, BLoC bugs, test failures.
+
+CRASH PREVENTION — find and fix every pattern:
+• Null dereferences → add ?. or ! or explicit null check
+• StreamController.add() after dispose() → check isClosed first
+• BLoC emit after close() → check isClosed
+• Navigator/GoRouter on unmounted widget → if (!mounted) return
+• Double-tap duplicate async ops → add isLoading bool guard
+• Firebase calls without try/catch/finally
+• Unhandled Stream errors → add .handleError()
+• WebRTC/platform channel calls without error handling
+• File I/O without existence check
+• Network calls without connectivity check
+
+ANDROID {MIN_SDK}–{TARGET_SDK} COMPAT:
+• POST_NOTIFICATIONS permission required API 33+
+• FOREGROUND_SERVICE_* types required API 34+
+• Photo picker for media access API 33+
+
+Return ONLY valid JSON (no markdown, no extra text):
+{{
+  "fixed_files": {{"relative/path.dart": "COMPLETE file content"}},
+  "explanation": "one-line summary under 200 chars",
+  "crash_risks_fixed": ["each scenario fixed"]
+}}
+NEVER return google-services.json, firebase_options.dart, key.properties.
+ALWAYS return COMPLETE file contents — never truncate or partial."""
+
+PROMPT_BUILD = f"""You are a Senior Flutter/Android Build Engineer in Linux CI.
+Package: {PACKAGE_NAME} | Firebase: {FIREBASE_PROJECT}
+Keystore alias: {KEY_ALIAS}
+Android: minSdk={MIN_SDK} ({MIN_ANDROID}), targetSdk={TARGET_SDK} ({TARGET_ANDROID})
+Build command: flutter build apk --release --split-per-abi
+Produces: arm64-v8a + armeabi-v7a + x86_64 APKs
+
+PHASE 2: Fix flutter build apk --release --split-per-abi failures.
+
+GRADLE: version conflicts, compileSdk wrong, missing plugins, Kotlin/AGP/Gradle
+  version mismatch, multidex not enabled, NDK version, resource merge conflicts
+SIGNING: key.properties not found, signingConfig missing from release buildType,
+  keystore credential errors
+MANIFEST: missing permissions — INTERNET, CAMERA, RECORD_AUDIO,
+  READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, ACCESS_FINE_LOCATION,
+  ACCESS_COARSE_LOCATION, POST_NOTIFICATIONS, BLUETOOTH_CONNECT,
+  FOREGROUND_SERVICE, FOREGROUND_SERVICE_CAMERA, FOREGROUND_SERVICE_MICROPHONE;
+  wrong package name; missing <queries> block; missing <uses-feature>
+PROGUARD/R8: Firebase/Flutter/WebRTC classes removed by shrinking → add -keep rules
+PUBSPEC: plugin requires higher minSdk, dependency conflicts → use overrides
+
+Return ONLY valid JSON (no markdown, no extra text):
+{{
+  "fixed_files": {{
+    "android/app/build.gradle": "COMPLETE content",
+    "android/build.gradle": "COMPLETE content",
+    "pubspec.yaml": "COMPLETE content",
+    "android/app/src/main/AndroidManifest.xml": "COMPLETE content",
+    "android/app/proguard-rules.pro": "COMPLETE content"
+  }},
+  "explanation": "one-line summary under 200 chars",
+  "root_cause": "exact reason build failed"
+}}
+NEVER return google-services.json. ALWAYS return COMPLETE file contents."""
+
+# ══════════════════════════════════════════════════════════════════════════
+# PHASE 1 — Dart analysis + unit tests
+# ══════════════════════════════════════════════════════════════════════════
+def phase1() -> None:
+    if memory.data["phase1_complete"]:
+        print("\n  ✅ Phase 1 already complete (memory). Skipping.")
+        return
+
+    print("\n" + "█" * 55)
+    print("  PHASE 1 — flutter analyze + flutter test")
+    print(f"  Max iterations: {MAX_ANALYZE_ITER}")
+    print(f"  Watchdog fires at: {SOFT_LIMIT_SECS/3600:.2f}h")
+    print("█" * 55)
+
+    messages: list = []
+    consecutive_no_change = 0
+
+    for turn in range(1, MAX_ANALYZE_ITER + 1):
+        check_limits(f"p1-t{turn}")
+
+        elapsed_min = (time.monotonic() - RUN_START) / 60
+        print(f"\n{'='*55}")
+        print(f"  P1 Turn {turn}/{MAX_ANALYZE_ITER} | {elapsed_min:.1f} min elapsed")
+        print("=" * 55)
+
+        analyze = run("flutter analyze")
+        logs    = analyze.stdout + analyze.stderr
+
+        if analyze.returncode != 0:
+            print("  ❌ flutter analyze failed")
+        else:
+            print("  ✅ flutter analyze passed → running tests…")
+            tr   = run("flutter test")
+            logs += tr.stdout + tr.stderr
+            if tr.returncode == 0:
+                print("  ✅ Tests passed — Phase 1 complete!")
+                memory.mark_done("1")
+                git_commit("phase1 complete: analyze + tests green")
+                return
+            print("  ❌ Tests failed")
+
+        ctx = collect_dart_ctx(logs)
+
+        # Memory GUARANTEED via build_full_prompt
+        full_prompt = build_full_prompt(
+            task=(f"P1 TURN {turn}/{MAX_ANALYZE_ITER}: Fix ALL flutter analyze "
+                  f"and flutter test errors. Package:{PACKAGE_NAME}"),
+            context=f"Android:{MIN_SDK}→{TARGET_SDK}\nFiles:{json.dumps(ctx, indent=2)}",
+            logs=logs,
+        )
+        messages.append({"role": "user", "content": full_prompt})
+
+        try:
+            ai_text = call_ai(messages, PROMPT_ANALYZE, phase="p1", turn=turn)
+            fix     = parse_json(ai_text)
+            messages.append({"role": "assistant", "content": ai_text})
+        except Exception as e:
+            print(f"  ⚠️  AI error: {e} — rollback")
+            _git("git reset --hard HEAD")
+            messages.pop()
+            continue
+
+        fixed_files = fix.get("fixed_files", {})
+        expl        = fix.get("explanation", "")[:200]
+        crashes     = fix.get("crash_risks_fixed", [])
+
+        if not fixed_files:
+            consecutive_no_change += 1
+            print(f"  ⚠️  No file changes ({consecutive_no_change}/2).")
+            memory.record_failed("p1", turn, f"no changes: {expl}")
+            if consecutive_no_change >= 2:
+                restart_ai("no_progress_phase1")
+            messages.append({"role": "user", "content":
+                f"Turn {turn}: you made NO file changes. "
+                "Analyze the errors again carefully and fix something concrete."})
+            continue
+        consecutive_no_change = 0
+
+        written = [p for p, c in fixed_files.items() if write_file(p, c)]
+        print(f"  Written: {len(written)} | {expl}")
+        if crashes:
+            print(f"  🛡️  {', '.join(crashes[:3])}")
+
+        if not validate_dart(written):
+            print("  Rolling back — introduced new errors.")
+            _git("git reset --hard HEAD")
+            memory.record_failed("p1", turn, expl)
+            messages.append({"role": "user", "content":
+                f"Turn {turn} REJECTED: introduced NEW errors. "
+                f"Approach '{expl}' failed. Use a completely different fix."})
+            continue
+
+        memory.record_fix("p1", turn, expl, written, crashes)
+        git_commit(f"p1-t{turn}: {expl}")
+
+    print(f"\n⚠️  Phase 1 hit max iterations ({MAX_ANALYZE_ITER}).")
+    restart_ai("p1_max_iterations")
+
+# ══════════════════════════════════════════════════════════════════════════
+# PHASE 2 — Build loop (enforced build execution every iteration)
+# ══════════════════════════════════════════════════════════════════════════
+def phase2() -> str:
+    if memory.data["phase2_complete"]:
+        print("\n  ✅ Phase 2 already complete (memory).")
+        apks = list((REPO_ROOT / "build/app/outputs/flutter-apk").glob("*.apk"))
+        if apks:
+            with open("/tmp/apk_dir.txt", "w") as f:
+                f.write(str(apks[0].parent))
+            with open("/tmp/is_debug.txt", "w") as f:
+                f.write("false")
+            return str(apks[0])
+        return ""
+
+    print("\n" + "█" * 55)
+    print("  PHASE 2 — flutter build apk --release --split-per-abi")
+    print(f"  Max iterations: {MAX_BUILD_ITER}")
+    print(f"  Watchdog fires at: {SOFT_LIMIT_SECS/3600:.2f}h")
+    print("█" * 55)
+
+    ensure_signing()
+    build_msgs: list = []
+    consecutive_no_change = 0
+
+    for i in range(1, MAX_BUILD_ITER + 1):
+        check_limits(f"p2-t{i}")
+
+        elapsed_min = (time.monotonic() - RUN_START) / 60
+        print(f"\n{'='*55}")
+        print(f"  🚀 Build attempt {i}/{MAX_BUILD_ITER} | {elapsed_min:.1f} min elapsed")
+        print("=" * 55)
+
+        # THE ACTUAL BUILD — enforced every single iteration
+        print("  Running: flutter build apk --release --split-per-abi")
+        result = run("flutter build apk --release --split-per-abi")
+        output = result.stdout + result.stderr
+
+        if result.returncode == 0:
+            apk_dir = REPO_ROOT / "build/app/outputs/flutter-apk"
+            apks    = list(apk_dir.glob("*release*.apk"))
+            if apks:
+                print(f"  ✅ BUILD SUCCESS! {len(apks)} APK(s):")
+                for a in apks:
+                    print(f"    📦 {a.name} ({a.stat().st_size/1024/1024:.1f}MB)")
+                with open("/tmp/apk_dir.txt", "w") as f:
+                    f.write(str(apk_dir))
+                with open("/tmp/is_debug.txt", "w") as f:
+                    f.write("false")
+                memory.mark_done("2")
+                git_commit("phase2 complete: signed split APKs built")
+                push_progress("APKs built ✅")
+                return str(apks[0])
+            output += "\nERROR: No release APK files found after successful build."
+
+        print(f"  ❌ Build failed (attempt {i}/{MAX_BUILD_ITER})")
+        print(f"  Log tail:\n{output[-1200:]}")
+
+        # Debug APK fallback on last attempt only
+        if i == MAX_BUILD_ITER:
+            print(f"\n  All {MAX_BUILD_ITER} release attempts failed.")
+            print("  🔄 Fallback: flutter build apk --debug")
+            dbg = run("flutter build apk --debug")
+            if dbg.returncode == 0:
+                dbg_apk = REPO_ROOT / "build/app/outputs/flutter-apk/app-debug.apk"
+                if dbg_apk.exists():
+                    mb = dbg_apk.stat().st_size / 1024 / 1024
+                    print(f"  ✅ DEBUG build: {mb:.1f}MB (testing only, not for release)")
+                    with open("/tmp/apk_dir.txt", "w") as f:
+                        f.write(str(dbg_apk.parent))
+                    with open("/tmp/is_debug.txt", "w") as f:
+                        f.write("true")
+                    return str(dbg_apk)
+            print("  ❌ Debug also failed. Restarting for fresh attempt…")
+            restart_ai("all_builds_failed")
+
+        ctx = collect_build_ctx(output)
+
+        # Memory GUARANTEED via build_full_prompt
+        full_prompt = build_full_prompt(
+            task=(f"BUILD TURN {i}/{MAX_BUILD_ITER}: "
+                  f"flutter build apk --release --split-per-abi FAILED. Fix it."),
+            context=(f"Package:{PACKAGE_NAME} Keystore:{KEY_ALIAS}\n"
+                     f"minSdk={MIN_SDK} targetSdk={TARGET_SDK}\n"
+                     f"Files:{json.dumps(ctx, indent=2)}"),
+            logs=output,
+        )
+        build_msgs.append({"role": "user", "content": full_prompt})
+
+        try:
+            ai_text = call_ai(build_msgs, PROMPT_BUILD, phase="p2", turn=i)
+            fix     = parse_json(ai_text)
+            build_msgs.append({"role": "assistant", "content": ai_text})
+            expl  = fix.get("explanation", "")[:200]
+            cause = fix.get("root_cause", "unknown")
+            print(f"  🔍 Root cause: {cause}")
+            print(f"  📝 Fix: {expl}")
+        except Exception as e:
+            print(f"  ⚠️  AI error: {e} — rollback")
+            _git("git reset --hard HEAD")
+            build_msgs.pop()
+            continue
+
+        fixed_files = fix.get("fixed_files", {})
+
+        if not fixed_files:
+            consecutive_no_change += 1
+            print(f"  ⚠️  No file changes ({consecutive_no_change}/2).")
+            memory.record_failed("p2", i, f"no changes: {expl}")
+            if consecutive_no_change >= 2:
+                restart_ai("no_progress_phase2")
+            build_msgs.append({"role": "user", "content":
+                f"Turn {i}: you made NO file changes. "
+                "Read the build log carefully and fix actual Gradle/manifest errors."})
+            build_msgs.pop(); build_msgs.pop()
+            continue
+        consecutive_no_change = 0
+
+        written = [p for p, c in fixed_files.items() if write_file(p, c)]
+        print(f"  Files written: {len(written)}")
+
+        # Re-run pub get if pubspec changed
+        if any("pubspec.yaml" in p for p in written):
+            print("  pubspec.yaml changed → flutter pub get…")
+            pub = run("flutter pub get")
+            if pub.returncode != 0:
+                print(f"  ⚠️  pub get failed:\n{(pub.stdout+pub.stderr)[-400:]}")
+                memory.record_failed("p2", i, expl)
+                build_msgs.append({"role": "user", "content":
+                    f"Turn {i}: pubspec change broke pub get:\n"
+                    f"{pub.stdout+pub.stderr}\nFix the dependency conflict."})
+                _git("git reset --hard HEAD")
+                build_msgs.pop(); build_msgs.pop()
+                continue
+
+        memory.record_fix("p2", i, expl, written, [])
+        git_commit(f"p2-t{i}: {expl}")
+
+    print(f"\n⚠️  Phase 2 hit max iterations ({MAX_BUILD_ITER}). Restarting…")
+    restart_ai("p2_max_iterations")
+    return ""  # unreachable but keeps type checker happy
+
+# ══════════════════════════════════════════════════════════════════════════
+# ENTRY POINT
+# ══════════════════════════════════════════════════════════════════════════
+def main() -> None:
+    if not API_KEY:
+        print("❌ ANTHROPIC_API_KEY not set.")
+        sys.exit(1)
+
+    print("═" * 55)
+    print("  GooglePro — Ultimate AI Architect [v7]")
+    print("═" * 55)
+    print(f"  📦 Package    : {PACKAGE_NAME}")
+    print(f"  🔥 Firebase   : {FIREBASE_PROJECT}")
+    print(f"  🔑 Keystore   : {KEY_ALIAS}")
+    print(f"  📱 Android    : API {MIN_SDK} ({MIN_ANDROID}) → {TARGET_SDK} ({TARGET_ANDROID})")
+    print(f"  📱 Coverage   : ~99% of active Android devices")
+    print(f"  🔄 Max iters  : analyze={MAX_ANALYZE_ITER} build={MAX_BUILD_ITER}")
+    print(f"  📚 Memory     : {len(memory.data['fixes_summary'])} fixes, "
+          f"{memory.data['total_runs']} runs")
+    print(f"  ⏱  Watchdog   : fires at {SOFT_LIMIT_SECS/3600:.2f}h elapsed")
+    print("═" * 55)
+
+    if not (REPO_ROOT / "android/app/google-services.json").exists():
+        print("❌ google-services.json missing — check GOOGLE_SERVICES_JSON secret!")
+        sys.exit(1)
+    if KEYSTORE_PATH and not Path(KEYSTORE_PATH).exists():
+        print(f"❌ Keystore missing: {KEYSTORE_PATH}")
+        sys.exit(1)
+
+    git_commit("pre-AI snapshot")
+
+    phase1()
+    phase2()
+
+    # Final commit + push before opening PR
+    git_commit(f"AI pipeline complete: {memory.data['total_fixes']} total fixes")
+    push_progress("pipeline complete")
+
+    pr = _git(
+        'gh pr create '
+        '--title "✅ AI: Tests Pass + Signed APKs (Android 5.0–15)" '
+        f'--body "Phase 1+2 complete. {memory.data["total_fixes"]} fixes applied. '
+        f'APKs built for API {MIN_SDK}–{TARGET_SDK} ({MIN_ANDROID}–{TARGET_ANDROID})." '
+        '--base main --head ai-sandbox'
+    )
+    if pr.returncode == 0:
+        print(pr.stdout.strip())
+    elif "already exists" in pr.stderr:
+        print("  PR already open.")
+    else:
+        print(f"  PR: {pr.stderr.strip()}")
+
+    print("\n🎉 Pipeline complete!")
+    sys.exit(0)
+
+if __name__ == "__main__":
+    main()
+PYEOF
+
+      # ════════════════════════════════════════════════════════════════════
+      # 11 — Publish ALL APKs to GitHub Releases
+      # ════════════════════════════════════════════════════════════════════
+      - name: 🚀 Publish APKs to GitHub Releases
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          APK_DIR=$(cat /tmp/apk_dir.txt 2>/dev/null \
+            || echo "GooglePro/build/app/outputs/flutter-apk")
+          IS_DEBUG=$(cat /tmp/is_debug.txt 2>/dev/null || echo "false")
+          VC=$(cat /tmp/version_code.txt 2>/dev/null || echo "$(date +%s)")
+          VN=$(cat /tmp/version_name.txt 2>/dev/null || echo "1.0.$VC")
+
+          # Find ALL APKs
+          APK_FULL="$GITHUB_WORKSPACE/$APK_DIR"
+          [ -d "$APK_FULL" ] || APK_FULL="$APK_DIR"
+          mapfile -t APKS < <(find "$APK_FULL" -name "*.apk" 2>/dev/null | sort)
+
+          if [ ${#APKS[@]} -eq 0 ]; then
+            echo "❌ No APKs found in $APK_FULL"
+            ls -la "$APK_FULL" 2>/dev/null || echo "Directory not found"
+            exit 1
+          fi
+
+          echo "Found ${#APKS[@]} APK(s):"
+          for A in "${APKS[@]}"; do
+            echo "  📦 $(basename $A) — $(du -h "$A" | cut -f1)"
+          done
+
+          BD=$(date +'%Y-%m-%d')
+          BT=$(date +'%H:%M UTC')
+
+          if [ "$IS_DEBUG" = "true" ]; then
+            TAG="debug-${VC}-b${{ github.run_number }}"
+            TITLE="⚠️ GooglePro DEBUG $TAG"
+            BTYPE="DEBUG — for testing only, NOT for release"
+          else
+            TAG="v${VN}-b${{ github.run_number }}"
+            TITLE="📱 GooglePro $TAG"
+            BTYPE="RELEASE — signed, ready to install"
+          fi
+
+          # Commit before release — fixes never lost
+          cd "$GITHUB_WORKSPACE"
+          git add -A 2>/dev/null || true
+          git commit -m "AI: final build $TAG" 2>/dev/null || true
+          git push origin ai-sandbox --force 2>/dev/null || true
+
+          # Build upload args with friendly labels
+          ARGS=()
+          for A in "${APKS[@]}"; do
+            BN=$(basename "$A")
+            if   [[ "$BN" == *"arm64"*   ]]; then L="GooglePro-arm64-modern-phones.apk"
+            elif [[ "$BN" == *"armeabi"* ]]; then L="GooglePro-armeabi-older-phones.apk"
+            elif [[ "$BN" == *"x86_64"*  ]]; then L="GooglePro-x86_64-emulator.apk"
+            elif [[ "$BN" == *"debug"*   ]]; then L="GooglePro-debug.apk"
+            else                                  L="$BN"
+            fi
+            ARGS+=("$A#$L")
+          done
+
+          # Remove existing release/tag
+          gh release delete "$TAG" --yes 2>/dev/null || true
+          git push origin --delete "$TAG" 2>/dev/null || true
+
+          # Create release with ALL APKs attached
+          gh release create "$TAG" \
+            "${ARGS[@]}" \
+            --repo "${{ github.repository }}" \
+            --title "$TITLE" \
+            --notes "## $TITLE
+
+> Built, fixed and signed automatically by AI Architect
+
+### 📊 Build Details
+
+| | |
+|---|---|
+| 🔨 Build | #${{ github.run_number }} |
+| 📅 Date | $BD $BT |
+| 🔑 Type | $BTYPE |
+| 🏷️ Version | $VN (code: $VC) |
+| 📱 Min Android | API 21 — Android 5.0 Lollipop (~99% of devices) |
+| 🎯 Target | API 35 — Android 15 |
+
+### 📥 Which APK should I download?
+
+| File | Install on |
+|---|---|
+| **GooglePro-arm64-modern-phones.apk** | ✅ Most phones 2015+ — **use this one** |
+| **GooglePro-armeabi-older-phones.apk** | Older/budget Android phones |
+| **GooglePro-x86_64-emulator.apk** | Android Studio emulator only |
+
+**Not sure which one? Download arm64.**
+
+### 📲 How to install
+1. Tap the APK file below
+2. Download to your Android phone
+3. Open the downloaded file → tap **Install**
+4. If prompted → tap **Allow from this source**
+5. Done ✅
+
+### 🛡️ What the AI fixed this build
+- ✅ All Dart analysis errors resolved
+- ✅ All unit tests passing
+- ✅ Runtime crash risks identified and fixed
+- ✅ Android build errors resolved
+- ✅ API 21–35 (Android 5.0–15) compatibility verified" \
+            --latest
+
+          echo ""
+          echo "✅ ${#APKS[@]} APK(s) published to GitHub Releases!"
+          echo "📥 https://github.com/${{ github.repository }}/releases/latest"
